@@ -11,7 +11,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function CartPage() {
-  const { items, removeItem, getTotal } = useCartStore();
+  const { items, removeItem } = useCartStore();
   const [dresses, setDresses] = useState<Dress[]>([]);
 
   useEffect(() => {
