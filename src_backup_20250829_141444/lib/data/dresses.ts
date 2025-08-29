@@ -31,7 +31,6 @@ export interface Dress {
   _id: string;
   name: string;
   description: string;
-  newCollection: boolean;
   pricePerDay: number;
   isRentOnDiscount?: boolean;
   newPricePerDay?: number;
@@ -51,7 +50,6 @@ export async function fetchDresses(): Promise<Dress[]> {
       _id,
       name,
       description,
-      newCollection,
       pricePerDay,
       isRentOnDiscount,
       newPricePerDay,

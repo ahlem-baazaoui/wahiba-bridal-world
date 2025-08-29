@@ -115,6 +115,7 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
       currentCheckDate.setDate(currentCheckDate.getDate() + 1);
     }
 
+
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     
     addItem({
@@ -133,8 +134,8 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
   };
 
   const handleBuyNow = () => {
-    if (!selectedColor || !selectedSize) {
-      toast.error("Please select color and size");
+    if (!selectedColor) {
+      toast.error("Please select color");
       return;
     }
 
@@ -154,24 +155,6 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
 
     toast.success("Added to cart!");
     router.push("/cart");
-  };
-
-  const handleQuoteRequest = () => {
-    if (!selectedColor) {
-      toast.error("Please select a color.");
-      return;
-    }
-    
-    addItem({
-      dressId: dress._id,
-      quantity: 1,
-      color: selectedColor,
-      size: selectedSize || '', // Optional size, default to empty string
-      type: 'quote',
-    });
-    
-    toast.success("Demande de devis ajoutée au panier!");
-    router.push("/checkout");
   };
 
   const selectedColorImages = dress.colors.find(color => color.name === selectedColor)?.images || [];
@@ -205,13 +188,9 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
         <div className="space-y-6">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{dress.name}</h1>
-            {(dress.isRentOnDiscount || dress.isSellOnDiscount || dress.newCollection) && (
-              <span 
-                className={`text-white text-xs font-bold px-2 py-1 rounded shadow ${
-                  dress.newCollection ? "bg-[#B8A78F]" : "bg-red-500"
-                }`}
-              >
-                {dress.newCollection ? "Nouvelle collection" : "Promo"}
+            {(dress.isRentOnDiscount || dress.isSellOnDiscount) && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">
+                Promo
               </span>
             )}
           </div>
@@ -249,8 +228,7 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
                 )}
               </p>
             </div>
-            
-            {/* Sizes section is now always visible */}
+
             <div>
               <h3 className="font-semibold mb-2">Tailles</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -267,78 +245,64 @@ export default function DressPage({ params }: { params: Promise<{ id: string }> 
                     {size}
                   </button>
                 ))}
+                {/* 'No size' button removed */}
               </div>
             </div>
 
-            {!dress.newCollection && (
-              <>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Tarifs</h3>
-                  {/* Rental price */}
-                  {dress.isRentOnDiscount && dress.newPricePerDay ? (
-                    <p className="text-lg">
-                      <span className="line-through text-gray-400 mr-2">{dress.pricePerDay} TND/jour</span>
-                      <span className="text-red-600 font-bold">{dress.newPricePerDay} TND/jour à louer</span>
-                    </p>
-                  ) : (
-                    <p className="text-lg">{dress.pricePerDay} TND/jour à louer</p>
-                  )}
-                  {/* Sale price */}
-                  {dress.isForSale && (
-                    dress.isSellOnDiscount && dress.newBuyPrice ? (
-                      <p className="text-lg">
-                        <span className="line-through text-gray-400 mr-2">{dress.buyPrice} TND à acheter</span>
-                        <span className="text-red-600 font-bold">{dress.newBuyPrice} TND à acheter</span>
-                      </p>
-                    ) : (
-                      <p className="text-lg">{dress.buyPrice} TND à acheter</p>
-                    )
-                  )}
-                </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold">Tarifs</h3>
+              {/* Rental price */}
+              {dress.isRentOnDiscount && dress.newPricePerDay ? (
+                <p className="text-lg">
+                  <span className="line-through text-gray-400 mr-2">{dress.pricePerDay} TND/jour</span>
+                  <span className="text-red-600 font-bold">{dress.newPricePerDay} TND/jour à louer</span>
+                </p>
+              ) : (
+                <p className="text-lg">{dress.pricePerDay} TND/jour à louer</p>
+              )}
+              {/* Sale price */}
+              {dress.isForSale && (
+                dress.isSellOnDiscount && dress.newBuyPrice ? (
+                  <p className="text-lg">
+                    <span className="line-through text-gray-400 mr-2">{dress.buyPrice} TND à acheter</span>
+                    <span className="text-red-600 font-bold">{dress.newBuyPrice} TND à acheter</span>
+                  </p>
+                ) : (
+                  <p className="text-lg">{dress.buyPrice} TND à acheter</p>
+                )
+              )}
+            </div>
 
-                <div>
-                  <h3 className="font-semibold mb-2">Sélectionner les dates de location</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <DatePicker 
-                      label="Date de début" 
-                      value={startDate}
-                      onChange={setStartDate}
-                      disabled={isDayDisabled}
-                    />
-                    <DatePicker 
-                      label="Date de fin" 
-                      value={endDate}
-                      onChange={setEndDate}
-                      disabled={isDayDisabled}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button className="flex-1" onClick={handleAddToCart}>Programmer la location</Button>
-                  {dress.isForSale && (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={handleBuyNow}
-                    >
-                      Programmer l&apos;achat
-                    </Button>
-                  )}
-                </div>
-              </>
-            )}
-
-            {dress.newCollection && (
-              <div className="flex gap-4">
-                <Button 
-                  className="flex-1" 
-                  onClick={handleQuoteRequest}
-                >
-                  Demander un devis
-                </Button>
+            <div>
+              <h3 className="font-semibold mb-2">Sélectionner les dates de location</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker 
+                  label="Date de début" 
+                  value={startDate}
+                  onChange={setStartDate}
+                  disabled={isDayDisabled}
+                />
+                <DatePicker 
+                  label="Date de fin" 
+                  value={endDate}
+                  onChange={setEndDate}
+                  disabled={isDayDisabled}
+                />
               </div>
-            )}
+            </div>
+
+            <div className="flex gap-4">
+              <Button className="flex-1" onClick={handleAddToCart}>Programmer la location</Button>
+              {dress.isForSale && (
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={handleBuyNow}
+                >
+                  Programmer l&apos;achat
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { AnimatedWrapper } from "@/components/ui/animated-wrapper";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDresses, Dress } from "@/lib/data/dresses";
-import { urlFor, client } from "@/lib/client";
+import { urlFor, client } from "@/lib/client"; // Make sure sanityClient is exported from your client file
 import Testimonials, { GoogleReview } from "@/components/Testimonials";
 
 // Update the Banner type to avoid 'any'
@@ -117,7 +117,7 @@ export default function Home() {
         {isBannerLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-[#bdbdbd] to-[#d2c8a3] z-20">
             <div className="flex flex-col items-center gap-4">
-              <svg className="animate-spin h-10 w-10 text-[#bfa76a]" xmlns="http://www.w3.org/2-1_6cea126b3b.jpg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-10 w-10 text-[#bfa76a]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="#bfa76a" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="#bfa76a" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
               </svg>
@@ -219,17 +219,11 @@ export default function Home() {
                 href={`/dress/${dress._id}`}
                 className="group block relative"
               >
-                {/* Badge based on dress status */}
-                {dress.newCollection ? (
-                  <span className="absolute top-2 left-2 bg-[#B8A78F] text-white text-xs font-bold px-2 py-1 rounded z-10 shadow">
-                    Nouvelle Collection
+                {/* Discount badge */}
+                {(dress.isRentOnDiscount || dress.isSellOnDiscount) && (
+                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow">
+                    Promo
                   </span>
-                ) : (
-                  (dress.isRentOnDiscount || dress.isSellOnDiscount) && (
-                    <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow">
-                      Promo
-                    </span>
-                  )
                 )}
                 <div className="space-y-2">
                   <div className="aspect-[3/4] overflow-hidden rounded-lg">
@@ -242,40 +236,29 @@ export default function Home() {
                   <div>
                     <h3 className="font-medium">{dress.name}</h3>
                     <div className="flex flex-col gap-1 text-sm text-gray-600">
-                      {dress.newCollection ? (
-                        <span className="text-blue-500 font-semibold">Demander un devis</span>
+                      {/* Rental price */}
+                      {dress.isRentOnDiscount && dress.newPricePerDay ? (
+                        <div>
+                          <span className="line-through text-gray-400">{dress.pricePerDay} TND/jour</span>
+                          <span className="text-red-600 font-bold ml-2">{dress.newPricePerDay} TND/jour</span>
+                        </div>
                       ) : (
-                        <>
-                          {/* Rental price */}
-                          {dress.isRentOnDiscount && dress.newPricePerDay ? (
-                            <div>
-                              <span className="line-through text-gray-400">{dress.pricePerDay} TND/jour</span>
-                              <span className="text-red-600 font-bold ml-2">{dress.newPricePerDay} TND/jour</span>
-                            </div>
-                          ) : (
-                            dress.pricePerDay && (
-                              <div>
-                                <span>{dress.pricePerDay} TND/jour</span>
-                              </div>
-                            )
-                          )}
-                          {/* Sale price */}
-                          {dress.isForSale && (
-                            dress.isSellOnDiscount && dress.newBuyPrice ? (
-                              <div>
-                                <span className="line-through text-gray-400">{dress.buyPrice} TND à acheter</span>
-                                <span className="text-red-600 font-bold ml-2">{dress.newBuyPrice} TND à acheter</span>
-                              </div>
-                            ) : (
-                              dress.buyPrice && (
-                                <div>
-                                  <span>{dress.buyPrice} TND à acheter</span>
-                                </div>
-                              )
-                            )
-                          )}
-                        </>
+                        <div>
+                          <span>{dress.pricePerDay} TND/jour</span>
+                        </div>
                       )}
+                      {/* Sale price */}
+                      {dress.isForSale &&
+                        (dress.isSellOnDiscount && dress.newBuyPrice ? (
+                          <div>
+                            <span className="line-through text-gray-400">{dress.buyPrice} TND à acheter</span>
+                            <span className="text-red-600 font-bold ml-2">{dress.newBuyPrice} TND à acheter</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span>{dress.buyPrice} TND à acheter</span>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 </div>

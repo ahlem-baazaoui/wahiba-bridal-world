@@ -32,7 +32,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 
 const TUNISIAN_STATES = [
   "Ariana", "Béja", "Ben Arous", "Bizerte", "Gabès", "Gafsa", "Jendouba",
@@ -42,71 +41,43 @@ const TUNISIAN_STATES = [
 ];
 
 const formSchema = z.object({
-  fullName: z.string().min(2, "Nom complet est requis"),
-  phone: z.string().min(8, "Numéro de téléphone valide est requis"),
-  address: z.string().min(5, "Adresse est requise"),
-  postalCode: z.string().min(4, "Code postal est requis"),
-  state: z.string().min(2, "Gouvernorat est requis"),
+  fullName: z.string().min(2, "Full name is required"),
+  phone: z.string().min(8, "Valid phone number is required"),
+  address: z.string().min(5, "Address is required"),
+  postalCode: z.string().min(4, "Postal code is required"),
+  state: z.string().min(2, "State is required"),
   note: z.string().optional(),
-  tryOnDate: z.date().optional(),
+  tryOnDate: z.date({ required_error: "Please select a try-on date" }),
 }).refine((data) => {
-    const cartItems = useCartStore.getState().items;
-    const hasRentalItems = cartItems.some(item => item.type === 'rental');
-    
-    // If there are rental items, tryOnDate is required
-    if (hasRentalItems && !data.tryOnDate) {
-        return false;
+    const rentalItems = useCartStore.getState().items.filter(item => item.type === 'rental' && item.startDate);
+    if (!data.tryOnDate || rentalItems.length === 0) {
+        return true;
     }
+    const earliestRentalStartDate = rentalItems.reduce((minDate, item) => {
+        const itemStartDate = new Date(item.startDate!);
+        return itemStartDate < minDate ? itemStartDate : minDate;
+    }, new Date(8640000000000000));
 
-    // This validation is only for rental items with a valid startDate
-    if (hasRentalItems && data.tryOnDate) {
-        const rentalItems = cartItems.filter(item => item.type === 'rental' && item.startDate);
-        
-        // If there are no valid rental items with a start date, the condition is met
-        if (rentalItems.length === 0) {
-            return true;
-        }
+    const normalizedTryOnDate = new Date(data.tryOnDate);
+    normalizedTryOnDate.setHours(0, 0, 0, 0);
 
-        const earliestRentalStartDate = rentalItems.reduce((minDate, item) => {
-            // Ensure item.startDate is a valid Date object before comparison
-            const itemStartDate = new Date(item.startDate!);
-            return itemStartDate < minDate ? itemStartDate : minDate;
-        }, new Date(8640000000000000)); // Initialize with a very distant future date
+    const normalizedEarliestRentalStartDate = new Date(earliestRentalStartDate);
+    normalizedEarliestRentalStartDate.setHours(0, 0, 0, 0);
 
-        const normalizedTryOnDate = new Date(data.tryOnDate);
-        normalizedTryOnDate.setHours(0, 0, 0, 0);
-
-        const normalizedEarliestRentalStartDate = new Date(earliestRentalStartDate);
-        normalizedEarliestRentalStartDate.setHours(0, 0, 0, 0);
-        
-        if (normalizedTryOnDate >= normalizedEarliestRentalStartDate) {
-            return false;
-        }
-    }
-
-    return true;
+    return normalizedTryOnDate < normalizedEarliestRentalStartDate;
 }, {
-    message: "La date d'essayage doit être avant la période de location.",
+    message: "Try-on date must be before the rental period starts.",
     path: ["tryOnDate"],
 });
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items } = useCartStore();
+  const { items, getTotal } = useCartStore();
   const [dresses, setDresses] = useState<Dress[]>([]);
-  
-  const hasRentalItems = items.some(item => item.type === 'rental');
-  const hasOnlyQuoteItems = items.length > 0 && items.every(item => item.type === 'quote');
 
-  const total = items.reduce((sum, item) => {
-    if (item.type === 'rental') {
-      return sum + (item.pricePerDay || 0) * (item.quantity || 0);
-    }
-    if (item.type === 'purchase') {
-      return sum + (item.buyPrice || 0) * (item.quantity || 0);
-    }
-    return sum;
-  }, 0);
+  useEffect(() => {
+    fetchDresses().then(setDresses);
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -120,10 +91,6 @@ export default function CheckoutPage() {
       tryOnDate: undefined,
     },
   });
-
-  useEffect(() => {
-    fetchDresses().then(setDresses);
-  }, []);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -142,6 +109,7 @@ export default function CheckoutPage() {
         _key: uuidv4(),
         dressName: dress?.name,
         color: item.color,
+        // Only include size if present
         ...(item.size ? { size: item.size } : {}),
         quantity: item.quantity,
         startDate: item.startDate ? new Date(item.startDate).toISOString() : undefined,
@@ -151,6 +119,8 @@ export default function CheckoutPage() {
         type: item.type,
       };
     });
+
+    const total = getTotal();
 
     const scheduleDoc = {
       _type: "schedules",
@@ -166,17 +136,16 @@ export default function CheckoutPage() {
 
     try {
       await client.create(scheduleDoc);
-      if (!hasOnlyQuoteItems) {
-        await updateMonthlyRevenueOnPurchase();
-      }
+      await updateMonthlyRevenueOnPurchase();
       router.push("/success");
     } catch (error) {
-      toast.error("There was an error submitting your order. Please try again.");
+      alert("There was an error submitting your order. Please try again.");
       console.error(error);
     }
   }
 
   async function updateMonthlyRevenueOnPurchase() {
+    // Get current month as ISO string (e.g. 2025-06-01T00:00:00.000Z)
     const now = new Date();
     const monthIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -194,15 +163,16 @@ export default function CheckoutPage() {
         for (const item of appt.items) {
           if (item.type === "purchase") {
             totalSales += item.quantity || 0;
-            salesRevenue += (item.buyPrice || 0) * (item.quantity || 0);
+            salesRevenue += item.buyPrice * item.quantity|| 0;
           } else if (item.type === "rental") {
             totalRental += item.quantity;
-            rentalRevenue += (item.pricePerDay || 0) * (item.quantity || 0);
+            rentalRevenue += item.pricePerDay * item.quantity || 0;
           }
         }
       }
     }
 
+    // Update the record in Sanity
     await updateMonthlyRevenue(record._id, {
       totalSales,
       salesRevenue,
@@ -275,6 +245,7 @@ export default function CheckoutPage() {
                   )}
                 />
 
+                {/* State Dropdown */}
                 <FormField
                   control={form.control}
                   name="state"
@@ -327,25 +298,23 @@ export default function CheckoutPage() {
                 )}
               />
 
-              {hasRentalItems && (
-                <FormField
-                  control={form.control}
-                  name="tryOnDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date d&apos;essayage</FormLabel>
-                      <FormControl>
-                        <DatePicker 
-                          value={field.value} 
-                          onChange={field.onChange}
-                          disabled={(date) => date < new Date()}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              {/* Try On Date Section */}
+              <FormField
+                control={form.control}
+                name="tryOnDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date d&apos;essayage</FormLabel>
+                    <FormControl>
+                      <DatePicker 
+                        value={field.value} 
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex gap-4">
                 <Button variant="outline" asChild>
@@ -366,22 +335,6 @@ export default function CheckoutPage() {
               {items.map((item, idx) => {
                 const dress = dresses.find((d) => d._id === item.dressId);
                 if (!dress) return null;
-                
-                const isQuote = item.type === 'quote';
-                
-                // FIX: Explicitly check for valid Date objects
-                let formattedStartDate = '';
-                let formattedEndDate = '';
-
-                if (item.type === 'rental' && item.startDate && item.endDate) {
-                    const tempStartDate = new Date(item.startDate);
-                    const tempEndDate = new Date(item.endDate);
-
-                    if (!isNaN(tempStartDate.getTime()) && !isNaN(tempEndDate.getTime())) {
-                        formattedStartDate = format(tempStartDate, "MMM d");
-                        formattedEndDate = format(tempEndDate, "MMM d");
-                    }
-                }
 
                 return (
                   <div key={`${item.dressId}-${item.type}-${idx}`} className="flex gap-4">
@@ -396,70 +349,59 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-medium">{dress.name}</h3>
                         <span className="text-xs px-2 py-1 bg-gray-100 rounded-full capitalize">
-                          {isQuote ? "Devis" : item.type}
+                          {item.type}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">
-                        Couleur: {item.color}
+                        {item.color}
+                        {/* Only show size if present */}
                         {item.size ? ` | ${item.size}` : ""}
                       </p>
-                      {formattedStartDate && formattedEndDate && (
+                      {item.type === 'rental' && item.startDate && item.endDate && (
                         <p className="text-sm text-gray-600">
-                          {formattedStartDate} - {formattedEndDate}
+                          {format(item.startDate, "MMM d")} - {format(item.endDate, "MMM d")}
                         </p>
                       )}
-                      
-                      {isQuote ? (
-                        <p className="text-sm font-medium mt-1 text-blue-500">
-                          Demande de devis
-                        </p>
-                      ) : (
-                        <p className="text-sm font-medium mt-1">
-                          {item.type === 'rental'
-                            ? `${dress.pricePerDay} TND/jour × ${item.quantity} jours`
-                            : `${dress.buyPrice} TND × ${item.quantity}`}
-                        </p>
-                      )}
+                      <p className="text-sm font-medium mt-1">
+                        {item.type === 'rental'
+                          ? `${dress.pricePerDay} TND/jour × ${item.quantity} jours`
+                          : `${dress.buyPrice} TND × ${item.quantity}`}
+                      </p>
                     </div>
-                    
-                    {!isQuote && (
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {item.type === 'rental'
-                            ? `${(dress.pricePerDay || 0) * (item.quantity || 0)} TND`
-                            : `${(dress.buyPrice || 0) * (item.quantity || 0)} TND`}
-                        </p>
-                      </div>
-                    )}
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {item.type === 'rental'
+                          ? `${dress.pricePerDay * item.quantity} TND`
+                          : `${(dress.buyPrice || 0) * item.quantity} TND`}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            {!hasOnlyQuoteItems && (
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between">
-                  <span>Sous-total</span>
-                  <span>{total.toFixed(2)} TND</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Livraison</span>
-                  <span>Gratuit</span>
-                </div>
-                <div className="border-t pt-2">
-                  <div className="flex justify-between font-semibold">
-                    <span>Total</span>
-                    <span>{total.toFixed(2)} TND</span>
-                  </div>
-                </div>
-                {hasRentalItems && form.watch("tryOnDate") && (
-                  <div className="flex justify-between">
-                    <span>Date d&apos;essayage</span>
-                    <span>{format(form.watch("tryOnDate")!, "PPP")}</span>
-                  </div>
-                )}
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between">
+                <span>Sous-total</span>
+                <span>{getTotal()} TND</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span>Livraison</span>
+                <span>Gratuit</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>{getTotal()} TND</span>
+                </div>
+              </div>
+              {form.watch("tryOnDate") && (
+                <div className="flex justify-between">
+                  <span>Date d&apos;essayage</span>
+                  <span>{format(form.watch("tryOnDate"), "PPP")}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

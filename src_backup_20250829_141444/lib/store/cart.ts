@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 export type CartItem = {
   dressId: string;
-  type: 'rental' | 'purchase' | 'quote';
+  type: 'rental' | 'purchase';
   color: string;
   size: string;
   quantity: number;
@@ -16,7 +16,7 @@ export type CartItem = {
 interface CartStore {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (dressId: string, type: 'rental' | 'purchase' | 'quote', color: string, size: string) => void;
+  removeItem: (dressId: string, type: 'rental' | 'purchase', color: string, size: string) => void;
   getTotal: () => number;
   clearCart: () => void;
 }
@@ -50,7 +50,7 @@ export const useCartStore = create<CartStore>()(
           }
         });
       },
-      removeItem: (dressId: string, type: 'rental' | 'purchase' | 'quote', color: string, size: string) => {
+      removeItem: (dressId: string, type: 'rental' | 'purchase', color: string, size: string) => {
         set((state) => ({
           items: state.items.filter(
             (item) => !(

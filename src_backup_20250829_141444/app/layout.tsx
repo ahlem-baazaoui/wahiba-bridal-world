@@ -66,7 +66,7 @@ export default function RootLayout({
               </div>
             </div>
 
-            {/* <div className="w-full bg-gradient-to-r py-1 flex justify-center items-center">
+            <div className="w-full bg-gradient-to-r py-1 flex justify-center items-center">
               <span className="text-xs md:text-sm text-white tracking-wider italic font-light">
                 made by{" "}
                 <a
@@ -83,7 +83,7 @@ export default function RootLayout({
                   AMIDOU
                 </a>
               </span>
-            </div> */}
+            </div>
           </footer>
       </body>
     </html>

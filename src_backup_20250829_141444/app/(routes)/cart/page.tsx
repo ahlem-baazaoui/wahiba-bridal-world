@@ -34,20 +34,6 @@ export default function CartPage() {
     );
   }
 
-  // Determine if all items are quotes
-  const hasOnlyQuoteItems = items.every(item => item.type === 'quote');
-
-  // Calculate total for rental and purchase items only
-  const total = items.reduce((sum, item) => {
-    if (item.type === 'rental') {
-      return sum + (item.pricePerDay || 0) * item.quantity;
-    }
-    if (item.type === 'purchase') {
-      return sum + (item.buyPrice || 0) * item.quantity;
-    }
-    return sum; // Do not add quote items to the total
-  }, 0);
-
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.h1
@@ -68,13 +54,18 @@ export default function CartPage() {
             const dress = dresses.find((d) => d._id === item.dressId);
             if (!dress) return null;
 
+            const itemTotal = item.type === 'rental'
+              ? (item.pricePerDay || 0) * item.quantity
+              : (item.buyPrice || 0) * item.quantity;
+
+            // Type Guard: This combines all checks and tells TypeScript
+            // that within the if block, item.startDate and item.endDate
+            // are definitely Date objects.
             const isRentalWithValidDates = item.type === 'rental' &&
-              item.startDate instanceof Date &&
-              !isNaN(item.startDate.getTime()) &&
-              item.endDate instanceof Date &&
-              !isNaN(item.endDate.getTime());
-              
-            const isQuote = item.type === 'quote';
+                                          item.startDate instanceof Date &&
+                                          !isNaN(item.startDate.getTime()) &&
+                                          item.endDate instanceof Date &&
+                                          !isNaN(item.endDate.getTime());
 
             return (
               <motion.div
@@ -96,7 +87,7 @@ export default function CartPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{dress.name}</h3>
                     <span className="text-sm px-2 py-1 bg-gray-100 rounded-full capitalize">
-                      {isQuote ? "Devis" : item.type}
+                      {item.type}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">
@@ -110,19 +101,12 @@ export default function CartPage() {
                       Dates: {format(item.startDate!, "MMM d")} - {format(item.endDate!, "MMM d")}
                     </p>
                   )}
-                  
-                  {isQuote ? (
-                    <p className="text-sm font-medium mt-2 text-blue-500">
-                      Demande de devis
-                    </p>
-                  ) : (
-                    <p className="text-sm font-medium mt-2">
-                      {item.type === 'rental'
-                        ? `${item.pricePerDay} TND/jour × ${item.quantity} jours = ${((item.pricePerDay || 0) * item.quantity).toFixed(2)} TND`
-                        : `${item.buyPrice} TND × ${item.quantity} = ${((item.buyPrice || 0) * item.quantity).toFixed(2)} TND`
-                      }
-                    </p>
-                  )}
+                  <p className="text-sm font-medium mt-2">
+                    {item.type === 'rental'
+                      ? `${item.pricePerDay} TND/jour × ${item.quantity} jours = ${itemTotal.toFixed(2)} TND`
+                      : `${item.buyPrice} TND × ${item.quantity} = ${itemTotal.toFixed(2)} TND`
+                    }
+                  </p>
                 </div>
 
                 <Button
@@ -145,30 +129,22 @@ export default function CartPage() {
         >
           <div className="border rounded-lg p-6 space-y-4">
             <h2 className="text-xl font-semibold">Résumé de la commande</h2>
-            {hasOnlyQuoteItems ? (
-              <p className="text-sm text-center font-medium mt-2 text-blue-500">
-                Demande de devis
-              </p>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Sous-total</span>
-                    <span>{total.toFixed(2)} TND</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Livraison</span>
-                    <span>Gratuit</span>
-                  </div>
-                  <div className="border-t pt-2">
-                    <div className="flex justify-between font-semibold">
-                      <span>Total</span>
-                      <span>{total.toFixed(2)} TND</span>
-                    </div>
-                  </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Sous-total</span>
+                <span>{getTotal().toFixed(2)} TND</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Livraison</span>
+                <span>Gratuit</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>{getTotal().toFixed(2)} TND</span>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
             <Button className="w-full" asChild>
               <Link href="/checkout">Continuer</Link>
             </Button>

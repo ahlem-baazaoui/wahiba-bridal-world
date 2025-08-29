@@ -446,13 +446,9 @@ export default function DressesPage() {
               href={`/dress/${dress._id}`}
               className="group block relative"
             >
-              {(dress.isRentOnDiscount || (dress.isForSale && dress.isSellOnDiscount) || dress.newCollection) && (
-                <span 
-                  className={`absolute top-2 left-2 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow ${
-                    dress.newCollection ? "bg-[#B8A78F]" : "bg-red-500"
-                  }`}
-                >
-                  {dress.newCollection ? "Nouvelle collection" : "Promo"}
+              {(dress.isRentOnDiscount || (dress.isForSale && dress.isSellOnDiscount)) && (
+                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10 shadow">
+                  Promo
                 </span>
               )}
               <div className="space-y-2">
@@ -467,37 +463,38 @@ export default function DressesPage() {
                 <div>
                   <h3 className="font-medium">{dress.name}</h3>
                   <div className="flex flex-col gap-1 text-sm text-gray-600">
-                      {dress.newCollection ? (
-                        <span className="text-blue-500 font-semibold">Demander un devis</span>
-                      ):
-                      <>
-                      {/* Rental price */}
-                      {dress.isRentOnDiscount && dress.newPricePerDay ? (
+                    {/* Rental Price */}
+                    {dress.isRentOnDiscount && dress.newPricePerDay ? (
+                      <div>
+                        <span className="line-through text-gray-400">
+                          {dress.pricePerDay ?? 0} TND/jour
+                        </span>
+                        <span className="text-red-600 font-bold ml-2">
+                          {dress.newPricePerDay} TND/jour
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span>{dress.pricePerDay ?? 0} TND/jour</span>
+                      </div>
+                    )}
+                    {/* Sell Price */}
+                    {dress.isForSale &&
+                      (dress.isSellOnDiscount && dress.newBuyPrice ? (
                         <div>
-                          <span className="line-through text-gray-400">{dress.pricePerDay} TND/jour</span>
-                          <span className="text-red-600 font-bold ml-2">{dress.newPricePerDay} TND/jour</span>
+                          <span className="line-through text-gray-400">
+                            {dress.buyPrice ?? 0} TND à l&apos;achat
+                          </span>
+                          <span className="text-red-600 font-bold ml-2">
+                            {dress.newBuyPrice} TND à l&apos;achat
+                          </span>
                         </div>
                       ) : (
                         <div>
-                          <span>{dress.pricePerDay} TND/jour</span>
+                          <span>{dress.buyPrice ?? 0} TND à l&apos;achat</span>
                         </div>
-                      )}
-                      {/* Sale price */}
-                      {dress.isForSale &&
-                        (dress.isSellOnDiscount && dress.newBuyPrice ? (
-                          <div>
-                            <span className="line-through text-gray-400">{dress.buyPrice} TND à acheter</span>
-                            <span className="text-red-600 font-bold ml-2">{dress.newBuyPrice} TND à acheter</span>
-                          </div>
-                        ) : (
-                          <div>
-                            <span>{dress.buyPrice} TND à acheter</span>
-                          </div>
-                        ))}
-                      </>
-                      }
-                      
-                    </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             </Link>
